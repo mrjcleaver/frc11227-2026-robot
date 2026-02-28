@@ -3,29 +3,72 @@ package frc.robot.subsystems;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix6.CANBus;
+import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.controls.DutyCycleOut;
+import com.ctre.phoenix6.controls.Follower;
+import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.MotorAlignmentValue;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.CAN;
+import frc.robot.Constants.ShooterConstants;
 
 public class ShooterSubsystem extends SubsystemBase {
     private final CANBus kCanivoreBus = new CANBus("theGoose");
-    final TalonFX m_beltMotor = new TalonFX(14, kCanivoreBus);
-    final TalonFX m_flywheelMotor = new TalonFX(15, kCanivoreBus);
 
-    final DutyCycleOut m_beltRequest = new DutyCycleOut(0.0);
-    final DutyCycleOut m_flywheelRequest = new DutyCycleOut(0.0);
+    final TalonFX m_leftFlywheelLead = new TalonFX(CAN.leftFlywheelLead, kCanivoreBus);
+    final TalonFX m_leftFlywheelFollow = new TalonFX(CAN.leftFlywheelFollow, kCanivoreBus);
+    final TalonFX m_leftFlywheelFeeder = new TalonFX(CAN.leftFLywheelFeeder, kCanivoreBus);
+
+    final TalonFX m_rightFlywheelLead = new TalonFX(CAN.rightFlywheelLead, kCanivoreBus);
+    final TalonFX m_rightFlywheelFollow = new TalonFX(CAN.rightFlywheelFollow, kCanivoreBus);
+    final TalonFX m_rightFlywheelFeeder = new TalonFX(CAN.rightFlywheelFeeder, kCanivoreBus);
+
+    final VelocityVoltage m_VelocityVoltageRequest = new VelocityVoltage(0).withSlot(0);
+
+    final Slot0Configs flywheelSlot0Configs = new Slot0Configs();
+    final Slot0Configs feederSlot0Configs = new Slot0Configs();
+
+    public ShooterSubsystem() {
+        flywheelSlot0Configs.kS = ShooterConstants.flywheel_kS;
+        flywheelSlot0Configs.kV = ShooterConstants.flywheel_kV;
+        flywheelSlot0Configs.kP = ShooterConstants.flywheel_kP;
+        flywheelSlot0Configs.kI = ShooterConstants.flywheel_kI;
+        flywheelSlot0Configs.kD = ShooterConstants.flywheel_kD;
+
+        m_leftFlywheelLead.getConfigurator().apply(flywheelSlot0Configs);
+        m_leftFlywheelFollow.getConfigurator().apply(flywheelSlot0Configs);
+        m_rightFlywheelLead.getConfigurator().apply(flywheelSlot0Configs);
+        m_rightFlywheelFollow.getConfigurator().apply(flywheelSlot0Configs);
+
+        feederSlot0Configs.kS = ShooterConstants.feeder_kS;
+        feederSlot0Configs.kV = ShooterConstants.feeder_kV;
+        feederSlot0Configs.kP = ShooterConstants.feeder_kP;
+        feederSlot0Configs.kI = ShooterConstants.feeder_kI;
+        feederSlot0Configs.kD = ShooterConstants.feeder_kD;
+
+        m_leftFlywheelFeeder.getConfigurator().apply(feederSlot0Configs);
+        m_rightFlywheelFeeder.getConfigurator().apply(feederSlot0Configs);
+    }
 
     public Command spinFlywheel(DoubleSupplier speed) {
         return this.runEnd(
             () -> {
-                m_flywheelMotor.setControl(m_flywheelRequest.withOutput(speed.getAsDouble()));
-                m_beltMotor.setControl(m_beltRequest.withOutput(speed.getAsDouble() / 6));
+                // set velocity to 8 rps, add 0.5 V to overcome gravity
+                m_rightFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(8).withFeedForward(0.5));
+                m_leftFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(8).withFeedForward(0.5));
+
+                // set velocity to 2 rps, add 0.5 V to overcome gravity
+                m_leftFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(2).withFeedForward(0.5));
+                m_rightFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(2).withFeedForward(0.5));
             },
             () -> {
-                m_flywheelMotor.stopMotor();
-                m_beltMotor.stopMotor();
+                m_rightFlywheelLead.stopMotor();
+                m_leftFlywheelLead.stopMotor();
+                m_rightFlywheelFeeder.stopMotor();
+                m_leftFlywheelFeeder.stopMotor();
             });
     }
 }

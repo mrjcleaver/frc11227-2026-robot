@@ -15,5 +15,30 @@ package frc.robot;
 public final class Constants {
   public static class OperatorConstants {
     public static final int kDriverControllerPort = 0;
+    public static final int kOperatorControllerPort = 1;
+  }
+
+  public static class CAN {
+    public static final int leftFlywheelLead = 14;
+    public static final int leftFlywheelFollow = 15;
+    public static final int leftFLywheelFeeder = 16;
+
+    public static final int rightFlywheelLead = 17;
+    public static final int rightFlywheelFollow = 18;
+    public static final int rightFlywheelFeeder = 19;
+  }
+
+  public static class ShooterConstants {
+    public static final double flywheel_kS = 0;
+    public static final double flywheel_kV = 0;
+    public static final double flywheel_kP = 0.1;
+    public static final double flywheel_kI = 0;
+    public static final double flywheel_kD = 0;
+
+    public static final double feeder_kS = 0;
+    public static final double feeder_kV = 0;
+    public static final double feeder_kP = 0.1;
+    public static final double feeder_kI = 0;
+    public static final double feeder_kD = 0;
   }
 }
