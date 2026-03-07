@@ -44,6 +44,9 @@ public class ShooterSubsystem extends SubsystemBase {
         m_rightFlywheelLead.getConfigurator().apply(flywheelSlot0Configs);
         m_rightFlywheelFollow.getConfigurator().apply(flywheelSlot0Configs);
 
+        m_rightFlywheelLead.getConfigurator().apply(new MotorOutputConfigs().withInverted(InvertedValue.Clockwise_Positive));
+        m_rightFlywheelFeeder.getConfigurator().apply(new MotorOutputConfigs().withInverted(InvertedValue.Clockwise_Positive));
+
         // set follow flywheels to follow their leader motors
         m_rightFlywheelFollow.setControl(new Follower(m_rightFlywheelLead.getDeviceID(), MotorAlignmentValue.Aligned));
         m_leftFlywheelFollow.setControl(new Follower(m_leftFlywheelLead.getDeviceID(), MotorAlignmentValue.Aligned));

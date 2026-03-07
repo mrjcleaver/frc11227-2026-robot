@@ -19,13 +19,14 @@ public final class Constants {
   }
 
   public static class CAN {
-    public static final int leftFlywheelLead = 14;
-    public static final int leftFlywheelFollow = 15;
-    public static final int leftFLywheelFeeder = 16;
+    public static final int intakeLiftMotor = 14;
+    public static final int leftFlywheelLead = 16;
+    public static final int leftFlywheelFollow = 17;
+    public static final int leftFLywheelFeeder = 18;
 
-    public static final int rightFlywheelLead = 17;
-    public static final int rightFlywheelFollow = 18;
-    public static final int rightFlywheelFeeder = 19;
+    public static final int rightFlywheelLead = 19;
+    public static final int rightFlywheelFollow = 20;
+    public static final int rightFlywheelFeeder = 21;
   }
 
   public static class ShooterConstants {
