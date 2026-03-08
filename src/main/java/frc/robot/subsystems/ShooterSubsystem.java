@@ -3,13 +3,17 @@ package frc.robot.subsystems;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix6.CANBus;
+import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 
+import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.DoubleTopic;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.CAN;
@@ -31,13 +35,17 @@ public class ShooterSubsystem extends SubsystemBase {
     final Slot0Configs flywheelSlot0Configs = new Slot0Configs();
     final Slot0Configs feederSlot0Configs = new Slot0Configs();
 
-    public ShooterSubsystem() {
+    final DutyCycleOut m_DutyCycle = new DutyCycleOut(0.0);
+
+    final DoublePublisher flywheelSpeedPub;
+
+    public ShooterSubsystem(DoubleTopic flywheelVelocity) {
         // Check constants.java file to see the values provided
-        flywheelSlot0Configs.kS = ShooterConstants.flywheel_kS; // Add 0.1 V output to overcome static friction
-        flywheelSlot0Configs.kV = ShooterConstants.flywheel_kV; // A velocity target of 1 rps results in 0.12 V output
-        flywheelSlot0Configs.kP = ShooterConstants.flywheel_kP; // An error of 1 rps results in 0.11 V output
-        flywheelSlot0Configs.kI = ShooterConstants.flywheel_kI; // no output for integrated error
-        flywheelSlot0Configs.kD = ShooterConstants.flywheel_kD; // no output for error derivative
+        flywheelSlot0Configs.kS = ShooterConstants.flywheel_kS;
+        flywheelSlot0Configs.kV = ShooterConstants.flywheel_kV;
+        flywheelSlot0Configs.kP = ShooterConstants.flywheel_kP;
+        flywheelSlot0Configs.kI = ShooterConstants.flywheel_kI;
+        flywheelSlot0Configs.kD = ShooterConstants.flywheel_kD;
 
         m_leftFlywheelLead.getConfigurator().apply(flywheelSlot0Configs);
         m_leftFlywheelFollow.getConfigurator().apply(flywheelSlot0Configs);
@@ -59,18 +67,23 @@ public class ShooterSubsystem extends SubsystemBase {
 
         m_leftFlywheelFeeder.getConfigurator().apply(feederSlot0Configs);
         m_rightFlywheelFeeder.getConfigurator().apply(feederSlot0Configs);
+
+        flywheelSpeedPub = flywheelVelocity.publish();
     }
 
-    public Command spinFlywheel(DoubleSupplier speed) {
+    public Command spinFlywheel(double speed) {
         return this.runEnd(
             () -> {
                 // set velocity to 8 rps, add 0.5 V to overcome gravity
-                m_rightFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(8).withFeedForward(0.5));
-                m_leftFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(8).withFeedForward(0.5));
+                m_rightFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(2));
+                m_leftFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(2));
 
                 // set velocity to 2 rps, add 0.5 V to overcome gravity
-                m_leftFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(2).withFeedForward(0.5));
-                m_rightFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(2).withFeedForward(0.5));
+                // m_leftFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(2).withFeedForward(0.5));
+                // m_rightFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(2).withFeedForward(0.5));
+
+                // m_rightFlywheelFeeder.setControl(m_DutyCycle.withOutput(0.5));
+                // m_leftFlywheelFeeder.setControl(m_DutyCycle.withOutput(0.5));
             },
             () -> {
                 m_rightFlywheelLead.stopMotor();
@@ -78,5 +91,27 @@ public class ShooterSubsystem extends SubsystemBase {
                 m_rightFlywheelFeeder.stopMotor();
                 m_leftFlywheelFeeder.stopMotor();
             });
+    }
+
+    public Command manualSpinSystem(DoubleSupplier speed) {
+        return this.runEnd(
+            () -> {
+                //m_rightFlywheelLead.setControl(m_DutyCycle.withOutput(speed.getAsDouble() / 2));
+                m_leftFlywheelLead.setControl(m_DutyCycle.withOutput(speed.getAsDouble() / 2));
+
+                //m_rightFlywheelFeeder.setControl(m_DutyCycle.withOutput(speed.getAsDouble() / 2));
+                //m_leftFlywheelFeeder.setControl(m_DutyCycle.withOutput(speed.getAsDouble() / 2));
+            },
+            () -> {
+                m_rightFlywheelLead.stopMotor();
+                m_leftFlywheelLead.stopMotor();
+                m_rightFlywheelFeeder.stopMotor();
+                m_leftFlywheelFeeder.stopMotor();
+            });
+    }
+
+    @Override
+    public void periodic() {
+        flywheelSpeedPub.set(m_leftFlywheelLead.getVelocity().getValueAsDouble());
     }
 }

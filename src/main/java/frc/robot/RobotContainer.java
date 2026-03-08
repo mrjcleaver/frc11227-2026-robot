@@ -12,11 +12,13 @@ import com.pathplanner.lib.commands.FollowPathCommand;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.networktables.DoubleTopic;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
@@ -40,8 +42,13 @@ public class RobotContainer {
 
     private final CommandXboxController joystick = new CommandXboxController(0);
 
+    NetworkTableInstance inst = NetworkTableInstance.getDefault();
+    NetworkTable table = inst.getTable("datatable");
+
+    DoubleTopic flywheelVelocity = table.getDoubleTopic("flywheelVelocity");
+
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-    public final ShooterSubsystem shooter = new ShooterSubsystem();
+    public final ShooterSubsystem shooter = new ShooterSubsystem(flywheelVelocity);
 
     /* Path follower */
     private final SendableChooser<Command> autoChooser;
@@ -92,7 +99,10 @@ public class RobotContainer {
 
         drivetrain.registerTelemetry(logger::telemeterize);
 
-        joystick.x().whileTrue(shooter.spinFlywheel(joystick::getRightTriggerAxis));
+        // joystick.x().whileTrue(shooter.spinFlywheel(MaxSpeed));
+
+        // joystick.x().whileTrue(shooter.manualSpinSystem(joystick::getRightTriggerAxis));
+        // joystick.y().whileTrue(shooter.manualSpinBelt(joystick::getRightTriggerAxis));
     }
 
     public Command getAutonomousCommand() {
