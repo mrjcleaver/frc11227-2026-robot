@@ -31,6 +31,10 @@ public class ShooterSubsystem extends SubsystemBase {
     final Slot0Configs flywheelSlot0Configs = new Slot0Configs();
     final Slot0Configs feederSlot0Configs = new Slot0Configs();
 
+    public static double limelightDeg = 5.0; 
+    public static double limelightHeightIn = 28.0; 
+    public static double goalHeightIn = 44.25;
+
     public ShooterSubsystem() {
         // Check constants.java file to see the values provided
         flywheelSlot0Configs.kS = ShooterConstants.flywheel_kS; // Add 0.1 V output to overcome static friction
