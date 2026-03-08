@@ -65,6 +65,14 @@ public class ShooterSubsystem extends SubsystemBase {
         m_rightFlywheelFeeder.getConfigurator().apply(feederSlot0Configs);
     }
 
+    public static double getDistance() {
+        double ty = LimelightHelpers.getTY("limelight");
+        double limelightSightHeight = goalHeightIn - limelightHeightIn;
+        double dist = limelightSightHeight / Math.tan(limelightDeg + ty);
+        distancePub.set(dist);
+        return dist;
+    }
+
     public Command spinFlywheel(DoubleSupplier speed) {
         return this.runEnd(
             () -> {
