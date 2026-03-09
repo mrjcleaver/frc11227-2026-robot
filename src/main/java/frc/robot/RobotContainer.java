@@ -12,6 +12,7 @@ import com.pathplanner.lib.commands.FollowPathCommand;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.DoubleTopic;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -46,9 +47,16 @@ public class RobotContainer {
     NetworkTable table = inst.getTable("datatable");
 
     DoubleTopic flywheelVelocity = table.getDoubleTopic("flywheelVelocity");
+    DoubleTopic distanceTopic = table.getDoubleTopic("distance");
+    DoubleTopic limelightDistance = table.getDoubleTopic("limelightDistance");
+    DoubleTopic heightDiff = table.getDoubleTopic("HeightDiff");
+
+    DoubleTopic flywheelSpeed = table.getDoubleTopic("flywheelSpeed");
+
+    DoubleSubscriber flywheelSpeedSub;
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-    public final ShooterSubsystem shooter = new ShooterSubsystem(flywheelVelocity);
+    public final ShooterSubsystem shooter = new ShooterSubsystem(flywheelVelocity, distanceTopic, limelightDistance, heightDiff);
 
     /* Path follower */
     private final SendableChooser<Command> autoChooser;
@@ -56,6 +64,8 @@ public class RobotContainer {
     public RobotContainer() {
         autoChooser = AutoBuilder.buildAutoChooser();
         SmartDashboard.putData("Auto Mode", autoChooser);
+
+        SmartDashboard.putNumber("FlywheelSetpoint", 0.0);
 
         configureBindings();
 
@@ -75,6 +85,8 @@ public class RobotContainer {
             )
         );
 
+
+
         // Idle while the robot is disabled. This ensures the configured
         // neutral mode is applied to the drive motors while disabled.
         final var idle = new SwerveRequest.Idle();
@@ -86,6 +98,17 @@ public class RobotContainer {
         joystick.b().whileTrue(drivetrain.applyRequest(() ->
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
+
+        joystick.rightBumper().whileTrue(drivetrain.applyRequest(() -> 
+            drive.withVelocityX(0 * MaxSpeed / 3) // Don't drive
+                .withVelocityY(0 * MaxSpeed / 3) 
+                .withRotationalRate(-drivetrain.limelight_aim_proportional() * MaxAngularRate) // turn toward target
+        ));
+
+        joystick.y().whileTrue(shooter.spinFeeder());
+        // joystick.y().whileTrue(shooter.spinFlywheel());
+
+        joystick.x().whileTrue(shooter.spinSequence());
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.

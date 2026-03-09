@@ -30,16 +30,20 @@ public final class Constants {
   }
 
   public static class ShooterConstants {
-    public static final double flywheel_kS = 0.28;
-    public static final double flywheel_kV = 0.118;
-    public static final double flywheel_kP = 0.09;
+    public static final double flywheel_kS = 3.72;
+    public static final double flywheel_kV = 0.015;
+    public static final double flywheel_kP = 8;
     public static final double flywheel_kI = 0;
     public static final double flywheel_kD = 0;
 
-    public static final double feeder_kS = 0.55;
-    public static final double feeder_kV = 0.131;
-    public static final double feeder_kP = 0.1;
+    public static final double feeder_kS = 24;
+    public static final double feeder_kV = 0.2;
+    public static final double feeder_kP = 8;
     public static final double feeder_kI = 0;
     public static final double feeder_kD = 0;
   }
+
+  // public static class RobotConstants {
+  //   public static final double limelightHeightInches 
+  // }
 }
