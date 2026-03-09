@@ -10,12 +10,14 @@ import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
+import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import frc.robot.LimelightHelpers;
 import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.DoubleTopic;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.FunctionalCommand;
+import edu.wpi.first.wpilibj2.command.ConditionalCommand;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.CAN;
 import frc.robot.Constants.ShooterConstants;
@@ -64,6 +66,14 @@ public class ShooterSubsystem extends SubsystemBase {
         m_rightFlywheelLead.getConfigurator().apply(new MotorOutputConfigs().withInverted(InvertedValue.Clockwise_Positive));
         m_rightFlywheelFeeder.getConfigurator().apply(new MotorOutputConfigs().withInverted(InvertedValue.Clockwise_Positive));
 
+        m_leftFlywheelLead.setNeutralMode(NeutralModeValue.Coast);
+        m_leftFlywheelFollow.setNeutralMode(NeutralModeValue.Coast);
+        m_rightFlywheelLead.setNeutralMode(NeutralModeValue.Coast);
+        m_rightFlywheelFollow.setNeutralMode(NeutralModeValue.Coast);
+
+        m_leftFlywheelFeeder.setNeutralMode(NeutralModeValue.Brake);
+        m_rightFlywheelFeeder.setNeutralMode(NeutralModeValue.Brake);
+
         // set follow flywheels to follow their leader motors
         m_rightFlywheelFollow.setControl(new Follower(m_rightFlywheelLead.getDeviceID(), MotorAlignmentValue.Aligned));
         m_leftFlywheelFollow.setControl(new Follower(m_leftFlywheelLead.getDeviceID(), MotorAlignmentValue.Aligned));
@@ -83,37 +93,53 @@ public class ShooterSubsystem extends SubsystemBase {
         heightDiffPub = heightDiff.publish();
     }
 
-    // public Command stopBeltShootSequence() {
-    //     return new FunctionalCommand(null, null, null, null, null)
-    // }
-
-    public Command spinSequence() {
-        return this.run(() -> {
-            m_rightFlywheelLead.setControl(m_velocityTorqueRequest.withVelocity(100));
-            m_leftFlywheelLead.setControl(m_velocityTorqueRequest.withVelocity(100));
-        }).withTimeout(2)
-        .andThen(this.run(() -> {
-            m_rightFlywheelFeeder.setControl(m_velocityTorqueRequest.withVelocity(30));
-            m_leftFlywheelFeeder.setControl(m_velocityTorqueRequest.withVelocity(30));
-        }).finallyDo(() -> {
-            m_rightFlywheelLead.stopMotor();
-            m_leftFlywheelLead.stopMotor();
-            m_leftFlywheelFeeder.stopMotor();
-            m_rightFlywheelFeeder.stopMotor();
-        }));
+    public void setFlywheelSpeed(double rps) {
+        m_rightFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(rps));
+        m_leftFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(rps));
     }
 
-    public Command spinFlywheel() {
-        return this.runEnd(
-            () -> {
-                // set velocity to 8 rps, add 0.5 V to overcome gravity
-                m_rightFlywheelLead.setControl(m_velocityTorqueRequest.withVelocity(80));
-                m_leftFlywheelLead.setControl(m_velocityTorqueRequest.withVelocity(80));
-            },
-            () -> {
-                m_rightFlywheelLead.stopMotor();
-                m_leftFlywheelLead.stopMotor();
-            });
+    public void setFeederSpeed(double rps) {
+        m_leftFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(rps));
+        m_rightFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(rps));
+    }
+
+    public void stopFlywheels() {
+        m_leftFlywheelLead.stopMotor();
+        m_rightFlywheelLead.stopMotor();
+    }
+
+    public void stopFeeder() {
+        m_leftFlywheelFeeder.stopMotor();
+        m_rightFlywheelFeeder.stopMotor();
+    }
+
+    public void stopSystem() {
+        stopFlywheels();
+        stopFeeder();
+    } 
+
+    public boolean flywheelAtVelocity(double rps, double tolerance) {
+        return m_rightFlywheelLead.getVelocity().isNear(rps, tolerance)
+            && m_leftFlywheelLead.getVelocity().isNear(rps, tolerance);
+    }
+
+    public boolean ready() {
+        return flywheelAtVelocity(0, 0);
+    }
+
+    public Command shootSequence() {
+        return 
+            this.runOnce(() -> setFlywheelSpeed(0))
+            .until(this::ready)
+            .andThen(runOnce(() -> setFeederSpeed(0)))
+            .finallyDo(this::stopSystem);
+    }
+
+    public Command shootPauseSequence() {
+        return new ParallelCommandGroup(
+            this.runOnce(() -> setFlywheelSpeed(50)),
+            new ConditionalCommand(this.runOnce(() -> setFeederSpeed(30)), this.runOnce(() -> stopFeeder()), this::ready).repeatedly()
+        ).finallyDo(() -> this.stopSystem());
     }
 
     public Command spinFeeder() {
