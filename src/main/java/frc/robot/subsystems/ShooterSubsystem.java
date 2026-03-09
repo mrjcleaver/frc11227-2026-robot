@@ -20,6 +20,8 @@ import edu.wpi.first.wpilibj2.command.ConditionalCommand;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.CAN;
+import frc.robot.Constants.FieldConstants;
+import frc.robot.Constants.RobotConstants;
 import frc.robot.Constants.ShooterConstants;
 
 public class ShooterSubsystem extends SubsystemBase {
@@ -46,9 +48,8 @@ public class ShooterSubsystem extends SubsystemBase {
     final DoublePublisher limelightTYPub;
     final DoublePublisher heightDiffPub;
 
-    public static double limelightDeg = 5.0; 
-    public static double limelightHeightIn = 28.0; 
-    public static double goalHeightIn = 44.25;
+    private double currentFlywheelSetpoint;
+
 
     public ShooterSubsystem(DoubleTopic flywheelVelocity, DoubleTopic distance, DoubleTopic limelightTY, DoubleTopic heightDiff) {
         // Check constants.java file to see the values provided
@@ -91,6 +92,8 @@ public class ShooterSubsystem extends SubsystemBase {
         distancePub = distance.publish();
         limelightTYPub = limelightTY.publish();
         heightDiffPub = heightDiff.publish();
+
+        currentFlywheelSetpoint = 0.0;
     }
 
     public void setFlywheelSpeed(double rps) {
@@ -124,14 +127,14 @@ public class ShooterSubsystem extends SubsystemBase {
     }
 
     public boolean ready() {
-        return flywheelAtVelocity(0, 0);
+        return flywheelAtVelocity(currentFlywheelSetpoint, 2);
     }
 
     public Command shootSequence() {
-        return 
-            this.runOnce(() -> setFlywheelSpeed(0))
+        return
+            this.runOnce(() -> setFlywheelSpeed(currentFlywheelSetpoint))
             .until(this::ready)
-            .andThen(runOnce(() -> setFeederSpeed(0)))
+            .andThen(runOnce(() -> setFeederSpeed(ShooterConstants.feederSetpointRPS)))
             .finallyDo(this::stopSystem);
     }
 
@@ -155,14 +158,26 @@ public class ShooterSubsystem extends SubsystemBase {
             });
     }
 
+    public void pickScoringFlywheelSetpoint() {
+        double targetDistance = limelightGetDistance(FieldConstants.hubTagHeight);
+        currentFlywheelSetpoint = ShooterConstants.lerpTable.get(targetDistance);
+    }
+
+    public double limelightGetDistance(double targetHeight) {
+        double tY = LimelightHelpers.getTY("limelight");
+        limelightTYPub.set(tY);
+
+        double limelightSightHeight = targetHeight - RobotConstants.limelightHeightInches;
+        heightDiffPub.set(limelightSightHeight);
+
+        return limelightSightHeight / Math.tan((RobotConstants.limelightDegrees + tY) * Math.PI / 180);
+    }
+
     @Override
     public void periodic() {
         flywheelSpeedPub.set(m_leftFlywheelLead.getVelocity().getValueAsDouble());
-        double ty = LimelightHelpers.getTY("limelight");
-        limelightTYPub.set(ty);
-        double limelightSightHeight = goalHeightIn - limelightHeightIn;
-        heightDiffPub.set(limelightSightHeight);
-        double dist = limelightSightHeight / Math.tan((limelightDeg + ty) * Math.PI / 180);
-        distancePub.set(dist);
+        
+        double limelightDistance = limelightGetDistance(FieldConstants.hubTagHeight);
+        distancePub.set(limelightDistance);
     }
 }

@@ -4,6 +4,12 @@
 
 package frc.robot;
 
+import java.util.Map;
+
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
+import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
+
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
  * constants. This class should not be used for any other purpose. All constants should be declared
@@ -41,9 +47,23 @@ public final class Constants {
     public static final double feeder_kP = 8;
     public static final double feeder_kI = 0;
     public static final double feeder_kD = 0;
+
+    public static final double feederSetpointRPS = 30;
+
+    public static final InterpolatingDoubleTreeMap lerpTable = InterpolatingDoubleTreeMap.ofEntries(
+      Map.entry(119.0, 52.5),
+      Map.entry(128.0, 58.0),
+      Map.entry(185.0, 60.0)
+    );
   }
 
-  // public static class RobotConstants {
-  //   public static final double limelightHeightInches 
-  // }
+  public static class RobotConstants {
+    public static final double limelightHeightInches = 28.0;
+    public static final double limelightDegrees = 5.0;    
+  }
+
+  public static class FieldConstants {
+    public static AprilTagFieldLayout fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
+    public static double hubTagHeight = fieldLayout.getTags().get(10).pose.getZ();
+  }
 }
