@@ -16,6 +16,8 @@ import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.DoubleTopic;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.util.sendable.Sendable;
+import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -67,6 +69,27 @@ public class RobotContainer {
 
         SmartDashboard.putNumber("FlywheelSetpoint", 0.0);
 
+        SmartDashboard.putData("Swerve Drive", new Sendable() {
+            @Override
+            public void initSendable(SendableBuilder builder) {
+                builder.setSmartDashboardType("SwerveDrive");
+
+                builder.addDoubleProperty("Front Left Angle", () -> drivetrain.getModule(0).getCurrentState().angle.getRadians(), null);
+                builder.addDoubleProperty("Front Left Velocity", () -> drivetrain.getModule(0).getCurrentState().speedMetersPerSecond, null);
+
+                builder.addDoubleProperty("Front Right Angle", () -> drivetrain.getModule(1).getCurrentState().angle.getRadians(), null);
+                builder.addDoubleProperty("Front Right Velocity", () -> drivetrain.getModule(0).getCurrentState().speedMetersPerSecond, null);
+
+                builder.addDoubleProperty("Back Left Angle", () -> drivetrain.getModule(2).getCurrentState().angle.getRadians(), null);
+                builder.addDoubleProperty("Back Left Velocity", () -> drivetrain.getModule(0).getCurrentState().speedMetersPerSecond, null);
+
+                builder.addDoubleProperty("Back Right Angle", () -> drivetrain.getModule(3).getCurrentState().angle.getRadians(), null);
+                builder.addDoubleProperty("Back Right Velocity", () -> drivetrain.getModule(0).getCurrentState().speedMetersPerSecond, null);
+
+                builder.addDoubleProperty("Robot Angle", () -> drivetrain.getState().Pose.getRotation().getRadians(), null);
+            }
+        });
+
         configureBindings();
 
         // Warmup PathPlanner to avoid Java pauses
@@ -108,7 +131,7 @@ public class RobotContainer {
         joystick.y().whileTrue(shooter.spinFeeder());
         // joystick.y().whileTrue(shooter.spinFlywheel());
 
-        joystick.x().whileTrue(shooter.spinSequence());
+        joystick.x().whileTrue(shooter.shootSequence());
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
