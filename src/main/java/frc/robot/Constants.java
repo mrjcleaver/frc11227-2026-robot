@@ -4,6 +4,12 @@
 
 package frc.robot;
 
+import java.util.Map;
+
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
+import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
+
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
  * constants. This class should not be used for any other purpose. All constants should be declared
@@ -20,15 +26,14 @@ public final class Constants {
 
   public static class CAN {
     // CANivore bus
-    public static final int leftFlywheelLead = 14;
-    public static final int leftFlywheelFollow = 15;
-    public static final int leftFLywheelFeeder = 16;
-
-    public static final int rightFlywheelLead = 17;
-    public static final int rightFlywheelFollow = 18;
-    public static final int rightFlywheelFeeder = 19;
-
     public static final int intakeAngle = 14;
+    public static final int leftFlywheelLead = 16;
+    public static final int leftFlywheelFollow = 17;
+    public static final int leftFLywheelFeeder = 18;
+
+    public static final int rightFlywheelLead = 19;
+    public static final int rightFlywheelFollow = 20;
+    public static final int rightFlywheelFeeder = 21;
 
     // RIO bus
     public static final int pdh = 1;
@@ -43,16 +48,34 @@ public final class Constants {
   }
 
   public static class ShooterConstants {
-    public static final double flywheel_kS = 0.1;
-    public static final double flywheel_kV = 0.12;
-    public static final double flywheel_kP = 0.11;
+    public static final double flywheel_kS = 3.72;
+    public static final double flywheel_kV = 0.015;
+    public static final double flywheel_kP = 8;
     public static final double flywheel_kI = 0;
     public static final double flywheel_kD = 0;
 
-    public static final double feeder_kS = 0;
-    public static final double feeder_kV = 0;
-    public static final double feeder_kP = 0.1;
+    public static final double feeder_kS = 24;
+    public static final double feeder_kV = 0.2;
+    public static final double feeder_kP = 8;
     public static final double feeder_kI = 0;
     public static final double feeder_kD = 0;
+
+    public static final double feederSetpointRPS = 30;
+
+    public static final InterpolatingDoubleTreeMap lerpTable = InterpolatingDoubleTreeMap.ofEntries(
+      Map.entry(119.0, 52.5),
+      Map.entry(128.0, 58.0),
+      Map.entry(185.0, 60.0)
+    );
+  }
+
+  public static class RobotConstants {
+    public static final double limelightHeightInches = 28.0;
+    public static final double limelightDegrees = 5.0;    
+  }
+
+  public static class FieldConstants {
+    public static AprilTagFieldLayout fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
+    public static double hubTagHeight = fieldLayout.getTags().get(10).pose.getZ();
   }
 }

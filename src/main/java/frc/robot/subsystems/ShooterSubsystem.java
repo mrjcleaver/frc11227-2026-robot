@@ -1,18 +1,27 @@
 package frc.robot.subsystems;
 
-import java.util.function.DoubleSupplier;
-
 import com.ctre.phoenix6.CANBus;
+import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.Follower;
+import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
+import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import frc.robot.LimelightHelpers;
+import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.DoubleTopic;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.ConditionalCommand;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.CAN;
+import frc.robot.Constants.FieldConstants;
+import frc.robot.Constants.RobotConstants;
 import frc.robot.Constants.ShooterConstants;
 
 public class ShooterSubsystem extends SubsystemBase {
@@ -26,23 +35,45 @@ public class ShooterSubsystem extends SubsystemBase {
     final TalonFX m_rightFlywheelFollow = new TalonFX(CAN.rightFlywheelFollow, kCanivoreBus);
     final TalonFX m_rightFlywheelFeeder = new TalonFX(CAN.rightFlywheelFeeder, kCanivoreBus);
 
+    final VelocityTorqueCurrentFOC m_velocityTorqueRequest = new VelocityTorqueCurrentFOC(0).withSlot(0);
     final VelocityVoltage m_VelocityVoltageRequest = new VelocityVoltage(0).withSlot(0);
 
     final Slot0Configs flywheelSlot0Configs = new Slot0Configs();
     final Slot0Configs feederSlot0Configs = new Slot0Configs();
 
-    public ShooterSubsystem() {
+    final DutyCycleOut m_DutyCycle = new DutyCycleOut(0.0);
+
+    final DoublePublisher flywheelSpeedPub;
+    final DoublePublisher distancePub;
+    final DoublePublisher limelightTYPub;
+    final DoublePublisher heightDiffPub;
+
+    private double currentFlywheelSetpoint;
+
+
+    public ShooterSubsystem(DoubleTopic flywheelVelocity, DoubleTopic distance, DoubleTopic limelightTY, DoubleTopic heightDiff) {
         // Check constants.java file to see the values provided
-        flywheelSlot0Configs.kS = ShooterConstants.flywheel_kS; // Add 0.1 V output to overcome static friction
-        flywheelSlot0Configs.kV = ShooterConstants.flywheel_kV; // A velocity target of 1 rps results in 0.12 V output
-        flywheelSlot0Configs.kP = ShooterConstants.flywheel_kP; // An error of 1 rps results in 0.11 V output
-        flywheelSlot0Configs.kI = ShooterConstants.flywheel_kI; // no output for integrated error
-        flywheelSlot0Configs.kD = ShooterConstants.flywheel_kD; // no output for error derivative
+        flywheelSlot0Configs.kS = ShooterConstants.flywheel_kS;
+        flywheelSlot0Configs.kV = ShooterConstants.flywheel_kV;
+        flywheelSlot0Configs.kP = ShooterConstants.flywheel_kP;
+        flywheelSlot0Configs.kI = ShooterConstants.flywheel_kI;
+        flywheelSlot0Configs.kD = ShooterConstants.flywheel_kD;
 
         m_leftFlywheelLead.getConfigurator().apply(flywheelSlot0Configs);
         m_leftFlywheelFollow.getConfigurator().apply(flywheelSlot0Configs);
         m_rightFlywheelLead.getConfigurator().apply(flywheelSlot0Configs);
         m_rightFlywheelFollow.getConfigurator().apply(flywheelSlot0Configs);
+
+        m_rightFlywheelLead.getConfigurator().apply(new MotorOutputConfigs().withInverted(InvertedValue.Clockwise_Positive));
+        m_rightFlywheelFeeder.getConfigurator().apply(new MotorOutputConfigs().withInverted(InvertedValue.Clockwise_Positive));
+
+        m_leftFlywheelLead.setNeutralMode(NeutralModeValue.Coast);
+        m_leftFlywheelFollow.setNeutralMode(NeutralModeValue.Coast);
+        m_rightFlywheelLead.setNeutralMode(NeutralModeValue.Coast);
+        m_rightFlywheelFollow.setNeutralMode(NeutralModeValue.Coast);
+
+        m_leftFlywheelFeeder.setNeutralMode(NeutralModeValue.Brake);
+        m_rightFlywheelFeeder.setNeutralMode(NeutralModeValue.Brake);
 
         // set follow flywheels to follow their leader motors
         m_rightFlywheelFollow.setControl(new Follower(m_rightFlywheelLead.getDeviceID(), MotorAlignmentValue.Aligned));
@@ -56,24 +87,97 @@ public class ShooterSubsystem extends SubsystemBase {
 
         m_leftFlywheelFeeder.getConfigurator().apply(feederSlot0Configs);
         m_rightFlywheelFeeder.getConfigurator().apply(feederSlot0Configs);
+
+        flywheelSpeedPub = flywheelVelocity.publish();
+        distancePub = distance.publish();
+        limelightTYPub = limelightTY.publish();
+        heightDiffPub = heightDiff.publish();
+
+        currentFlywheelSetpoint = 0.0;
     }
 
-    public Command spinFlywheel(DoubleSupplier speed) {
+    public void setFlywheelSpeed(double rps) {
+        m_rightFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(rps));
+        m_leftFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(rps));
+    }
+
+    public void setFeederSpeed(double rps) {
+        m_leftFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(rps));
+        m_rightFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(rps));
+    }
+
+    public void stopFlywheels() {
+        m_leftFlywheelLead.stopMotor();
+        m_rightFlywheelLead.stopMotor();
+    }
+
+    public void stopFeeder() {
+        m_leftFlywheelFeeder.stopMotor();
+        m_rightFlywheelFeeder.stopMotor();
+    }
+
+    public void stopSystem() {
+        stopFlywheels();
+        stopFeeder();
+    } 
+
+    public boolean flywheelAtVelocity(double rps, double tolerance) {
+        return m_rightFlywheelLead.getVelocity().isNear(rps, tolerance)
+            && m_leftFlywheelLead.getVelocity().isNear(rps, tolerance);
+    }
+
+    public boolean ready() {
+        return flywheelAtVelocity(currentFlywheelSetpoint, 2);
+    }
+
+    public Command shootSequence() {
+        return
+            this.runOnce(() -> setFlywheelSpeed(currentFlywheelSetpoint))
+            .until(this::ready)
+            .andThen(runOnce(() -> setFeederSpeed(ShooterConstants.feederSetpointRPS)))
+            .finallyDo(this::stopSystem);
+    }
+
+    public Command shootPauseSequence() {
+        return new ParallelCommandGroup(
+            this.runOnce(() -> setFlywheelSpeed(50)),
+            new ConditionalCommand(this.runOnce(() -> setFeederSpeed(30)), this.runOnce(() -> stopFeeder()), this::ready).repeatedly()
+        ).finallyDo(() -> this.stopSystem());
+    }
+
+    public Command spinFeeder() {
         return this.runEnd(
             () -> {
                 // set velocity to 8 rps, add 0.5 V to overcome gravity
-                m_rightFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(8).withFeedForward(0.5));
-                m_leftFlywheelLead.setControl(m_VelocityVoltageRequest.withVelocity(8).withFeedForward(0.5));
-
-                // set velocity to 2 rps, add 0.5 V to overcome gravity
-                m_leftFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(2).withFeedForward(0.5));
-                m_rightFlywheelFeeder.setControl(m_VelocityVoltageRequest.withVelocity(2).withFeedForward(0.5));
+                m_rightFlywheelFeeder.setControl(m_velocityTorqueRequest.withVelocity(50));
+                m_leftFlywheelFeeder.setControl(m_velocityTorqueRequest.withVelocity(50));
             },
             () -> {
-                m_rightFlywheelLead.stopMotor();
-                m_leftFlywheelLead.stopMotor();
-                m_rightFlywheelFeeder.stopMotor();
                 m_leftFlywheelFeeder.stopMotor();
+                m_rightFlywheelFeeder.stopMotor();
             });
+    }
+
+    public void pickScoringFlywheelSetpoint() {
+        double targetDistance = limelightGetDistance(FieldConstants.hubTagHeight);
+        currentFlywheelSetpoint = ShooterConstants.lerpTable.get(targetDistance);
+    }
+
+    public double limelightGetDistance(double targetHeight) {
+        double tY = LimelightHelpers.getTY("limelight");
+        limelightTYPub.set(tY);
+
+        double limelightSightHeight = targetHeight - RobotConstants.limelightHeightInches;
+        heightDiffPub.set(limelightSightHeight);
+
+        return limelightSightHeight / Math.tan((RobotConstants.limelightDegrees + tY) * Math.PI / 180);
+    }
+
+    @Override
+    public void periodic() {
+        flywheelSpeedPub.set(m_leftFlywheelLead.getVelocity().getValueAsDouble());
+        
+        double limelightDistance = limelightGetDistance(FieldConstants.hubTagHeight);
+        distancePub.set(limelightDistance);
     }
 }

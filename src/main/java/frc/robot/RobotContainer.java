@@ -12,9 +12,16 @@ import com.pathplanner.lib.commands.FollowPathCommand;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.networktables.DoubleSubscriber;
+import edu.wpi.first.networktables.DoubleTopic;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.util.sendable.Sendable;
+import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
@@ -39,8 +46,20 @@ public class RobotContainer {
 
     private final CommandXboxController joystick = new CommandXboxController(0);
 
+    NetworkTableInstance inst = NetworkTableInstance.getDefault();
+    NetworkTable table = inst.getTable("datatable");
+
+    DoubleTopic flywheelVelocity = table.getDoubleTopic("flywheelVelocity");
+    DoubleTopic distanceTopic = table.getDoubleTopic("distance");
+    DoubleTopic limelightDistance = table.getDoubleTopic("limelightDistance");
+    DoubleTopic heightDiff = table.getDoubleTopic("HeightDiff");
+
+    DoubleTopic flywheelSpeed = table.getDoubleTopic("flywheelSpeed");
+
+    DoubleSubscriber flywheelSpeedSub;
+
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-    public final ShooterSubsystem shooter = new ShooterSubsystem();
+    public final ShooterSubsystem shooter = new ShooterSubsystem(flywheelVelocity, distanceTopic, limelightDistance, heightDiff);
     public final IntakeSubsystem intake = new IntakeSubsystem();
 
     /* Path follower */
@@ -50,10 +69,33 @@ public class RobotContainer {
         autoChooser = AutoBuilder.buildAutoChooser();
         SmartDashboard.putData("Auto Mode", autoChooser);
 
+        SmartDashboard.putNumber("FlywheelSetpoint", 0.0);
+
+        SmartDashboard.putData("Swerve Drive", new Sendable() {
+            @Override
+            public void initSendable(SendableBuilder builder) {
+                builder.setSmartDashboardType("SwerveDrive");
+
+                builder.addDoubleProperty("Front Left Angle", () -> drivetrain.getModule(0).getCurrentState().angle.getRadians(), null);
+                builder.addDoubleProperty("Front Left Velocity", () -> drivetrain.getModule(0).getCurrentState().speedMetersPerSecond, null);
+
+                builder.addDoubleProperty("Front Right Angle", () -> drivetrain.getModule(1).getCurrentState().angle.getRadians(), null);
+                builder.addDoubleProperty("Front Right Velocity", () -> drivetrain.getModule(0).getCurrentState().speedMetersPerSecond, null);
+
+                builder.addDoubleProperty("Back Left Angle", () -> drivetrain.getModule(2).getCurrentState().angle.getRadians(), null);
+                builder.addDoubleProperty("Back Left Velocity", () -> drivetrain.getModule(0).getCurrentState().speedMetersPerSecond, null);
+
+                builder.addDoubleProperty("Back Right Angle", () -> drivetrain.getModule(3).getCurrentState().angle.getRadians(), null);
+                builder.addDoubleProperty("Back Right Velocity", () -> drivetrain.getModule(0).getCurrentState().speedMetersPerSecond, null);
+
+                builder.addDoubleProperty("Robot Angle", () -> drivetrain.getState().Pose.getRotation().getRadians(), null);
+            }
+        });
+
         configureBindings();
 
         // Warmup PathPlanner to avoid Java pauses
-        FollowPathCommand.warmupCommand().schedule();
+        CommandScheduler.getInstance().schedule(FollowPathCommand.warmupCommand());
     }
 
     private void configureBindings() {
@@ -67,6 +109,8 @@ public class RobotContainer {
                     .withRotationalRate(-joystick.getRightX() * MaxAngularRate) // Drive counterclockwise with negative X (left)
             )
         );
+
+
 
         // Idle while the robot is disabled. This ensures the configured
         // neutral mode is applied to the drive motors while disabled.
@@ -84,6 +128,16 @@ public class RobotContainer {
         joystick.y().onTrue(intake.intakeDown(IntakeConstants.intakeRotateSpeed));
 
         joystick.rightBumper().whileTrue(intake.spinRollers(-0.7));
+        joystick.rightBumper().whileTrue(drivetrain.applyRequest(() -> 
+            drive.withVelocityX(0 * MaxSpeed / 3) // Don't drive
+                .withVelocityY(0 * MaxSpeed / 3) 
+                .withRotationalRate(-drivetrain.limelight_aim_proportional() * MaxAngularRate) // turn toward target
+        ));
+
+        joystick.y().whileTrue(shooter.spinFeeder());
+        // joystick.y().whileTrue(shooter.spinFlywheel());
+
+        joystick.x().whileTrue(shooter.shootSequence());
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
@@ -96,7 +150,6 @@ public class RobotContainer {
         joystick.leftBumper().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
         drivetrain.registerTelemetry(logger::telemeterize);
-
     }
 
     public Command getAutonomousCommand() {
