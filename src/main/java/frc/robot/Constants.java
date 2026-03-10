@@ -19,6 +19,7 @@ public final class Constants {
   }
 
   public static class CAN {
+    // CANivore bus
     public static final int leftFlywheelLead = 14;
     public static final int leftFlywheelFollow = 15;
     public static final int leftFLywheelFeeder = 16;
@@ -27,14 +28,18 @@ public final class Constants {
     public static final int rightFlywheelFollow = 18;
     public static final int rightFlywheelFeeder = 19;
 
-    public static final int intakeMotor = 20;
-    public static final int intakeMotorAngle = 21;
+    public static final int intakeAngle = 14;
+
+    // RIO bus
+    public static final int pdh = 1;
+    public static final int intakeRollers = 2;
   }
 
-  public static class intakeConstants {
-    public static final double intakeP = 0;
-    public static final double intakeI = 0;
-    public static final double intakeD = 0;
+  public static class IntakeConstants {
+    public static final double intakeRotateCurrentLimit = 95;
+    public static final double intakeRotateSpeed = 0.3;
+    public static final int intakeUpDirection = -1;
+    public static final int intakeDownDirection = 1;
   }
 
   public static class ShooterConstants {
