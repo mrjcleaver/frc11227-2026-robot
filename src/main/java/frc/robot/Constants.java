@@ -41,10 +41,19 @@ public final class Constants {
   }
 
   public static class IntakeConstants {
+    // TODO: Intake angle PID values should be stored here along with gear ratio
     public static final double intakeRotateCurrentLimit = 95;
     public static final double intakeRotateSpeed = 0.3;
     public static final int intakeUpDirection = -1;
     public static final int intakeDownDirection = 1;
+
+    public static final double intakingRollerSpeed = 0.7;
+    public static final double intakingPosition = -0.01;
+
+    public static final double jiggleFrequency = 1;
+    public static final double jiggleAmplitude = 0.06;
+    public static final double jiggleOffset = 0.07;
+    public static final double jiggleRollerSpeed = 0.5;
   }
 
   public static class ShooterConstants {
@@ -63,15 +72,18 @@ public final class Constants {
     public static final double feederSetpointRPS = 30;
 
     public static final InterpolatingDoubleTreeMap lerpTable = InterpolatingDoubleTreeMap.ofEntries(
-      Map.entry(119.0, 52.5),
-      Map.entry(128.0, 58.0),
-      Map.entry(185.0, 60.0)
+      Map.entry(1.57, 47.0),
+      Map.entry(2.76, 55.0),
+      Map.entry(3.0, 57.0),
+      Map.entry(3.13, 60.0),
+      Map.entry(3.8, 64.5),
+      Map.entry(5.0, 73.0)
     );
   }
 
   public static class RobotConstants {
     public static final double limelightHeightInches = 28.0;
-    public static final double limelightDegrees = 5.0;    
+    public static final double limelightDegrees = 10.0;    
   }
 
   public static class FieldConstants {
