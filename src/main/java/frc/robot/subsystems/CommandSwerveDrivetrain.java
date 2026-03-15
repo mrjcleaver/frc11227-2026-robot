@@ -365,9 +365,24 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return super.samplePoseAt(Utils.fpgaToCurrentTime(timestampSeconds));
     }
 
-    public double limelight_aim_proportional() {    
+    public double limelight_aim_proportional() {
         double targetingAngularVelocity = -aimController.calculate(LimelightHelpers.getTX("limelight")); // calculate velocity toward target
-        targetingAngularVelocityPub.set(targetingAngularVelocity); // update values 
+        targetingAngularVelocityPub.set(targetingAngularVelocity); // update values
         return targetingAngularVelocity;
+    }
+
+    /**
+     * Returns a command that rotates the robot to aim at the Limelight target.
+     * Robot stays stationary (no translation). Use withTimeout() to bound duration.
+     */
+    public Command aimAtTarget() {
+        var aimRequest = new SwerveRequest.FieldCentric()
+            .withDriveRequestType(com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType.OpenLoopVoltage);
+        double maxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
+        return applyRequest(() -> aimRequest
+            .withVelocityX(0)
+            .withVelocityY(0)
+            .withRotationalRate(limelight_aim_proportional() * maxAngularRate)
+        );
     }
 }

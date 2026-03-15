@@ -25,6 +25,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.Constants.IntakeConstants;
+import frc.robot.LimelightHelpers;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ShooterSubsystem;
@@ -156,9 +157,16 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
+        Command visionReset = Commands.runOnce(() -> {
+            LimelightHelpers.PoseEstimate visionPose =
+                LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight");
+            if (visionPose != null && visionPose.tagCount > 0) {
+                drivetrain.resetPose(visionPose.pose);
+            }
+        }, drivetrain);
 
-        /* Run the path selected from the auto chooser */
-        return autoChooser.getSelected();
+        /* Reset pose from vision, then run the path selected from the auto chooser */
+        return Commands.sequence(visionReset, autoChooser.getSelected());
 
         // // Simple drive forward auton
         // final var idle = new SwerveRequest.Idle();
