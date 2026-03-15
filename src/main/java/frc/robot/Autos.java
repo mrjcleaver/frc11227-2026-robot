@@ -4,6 +4,7 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.path.PathPlannerPath;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -65,7 +66,43 @@ public class Autos {
     }
 
     public Command getSelected() {
-        return chooser.getSelected();
+        Command selected = chooser.getSelected();
+        if (selected == null) {
+            DriverStation.reportWarning("Auto chooser returned null — running Do Nothing", false);
+            return Commands.none();
+        }
+        return selected;
+    }
+
+    // ── Path loading helpers ──────────────────────────────────────────────────
+
+    /**
+     * Loads a PathPlanner path file by name, falling back to justShoot if the
+     * file is missing. Missing path files throw at construction time otherwise,
+     * which crashes the entire robot program before auto starts.
+     */
+    private Command loadPath(String pathName, ShooterSubsystem shooter) {
+        try {
+            return AutoBuilder.followPath(PathPlannerPath.fromPathFile(pathName));
+        } catch (Exception e) {
+            DriverStation.reportError(
+                "Failed to load path '" + pathName + "': " + e.getMessage(), false);
+            return justShoot(shooter);
+        }
+    }
+
+    /**
+     * Loads a PathPlanner .auto file by name, falling back to justShoot if the
+     * file is missing.
+     */
+    private Command loadAuto(String autoName, ShooterSubsystem shooter) {
+        try {
+            return AutoBuilder.buildAuto(autoName);
+        } catch (Exception e) {
+            DriverStation.reportError(
+                "Failed to load auto '" + autoName + "': " + e.getMessage(), false);
+            return justShoot(shooter);
+        }
     }
 
     // ── Individual Auto Routines ──────────────────────────────────────────────
@@ -79,7 +116,7 @@ public class Autos {
     private Command shootAndTaxi(ShooterSubsystem shooter, String pathName) {
         return Commands.sequence(
             shooter.shootSequence().withTimeout(3.0),
-            AutoBuilder.followPath(PathPlannerPath.fromPathFile(pathName))
+            loadPath(pathName, shooter)
         );
     }
 
@@ -95,7 +132,7 @@ public class Autos {
             shooter.shootSequence().withTimeout(3.0),
             intake.intakeDown(IntakeConstants.intakeRotateSpeed).withTimeout(1.0),
             Commands.deadline(
-                AutoBuilder.followPath(PathPlannerPath.fromPathFile(pathName)),
+                loadPath(pathName, shooter),
                 intake.intakeBalls()
             ),
             intake.intakeUp(IntakeConstants.intakeRotateSpeed).withTimeout(0.75),
@@ -111,7 +148,7 @@ public class Autos {
     private Command threePiece(ShooterSubsystem shooter) {
         return Commands.sequence(
             shooter.shootSequence().withTimeout(3.0),
-            AutoBuilder.buildAuto("Full Path")
+            loadAuto("Full Path", shooter)
         );
     }
 }

@@ -68,6 +68,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     private static PIDController aimController = new PIDController(0.04, 0, 0);
 
+    private final SwerveRequest.FieldCentric m_aimRequest = new SwerveRequest.FieldCentric()
+        .withDriveRequestType(com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType.OpenLoopVoltage);
+    private final double m_maxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
+
     // when the robot program starts
     NetworkTableInstance inst = NetworkTableInstance.getDefault();
     // Get the table within that instance that contains the data. There can
@@ -376,13 +380,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * Robot stays stationary (no translation). Use withTimeout() to bound duration.
      */
     public Command aimAtTarget() {
-        var aimRequest = new SwerveRequest.FieldCentric()
-            .withDriveRequestType(com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType.OpenLoopVoltage);
-        double maxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
-        return applyRequest(() -> aimRequest
+        return applyRequest(() -> m_aimRequest
             .withVelocityX(0)
             .withVelocityY(0)
-            .withRotationalRate(limelight_aim_proportional() * maxAngularRate)
+            .withRotationalRate(limelight_aim_proportional() * m_maxAngularRate)
         );
     }
 }
